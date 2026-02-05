@@ -52,6 +52,15 @@ app.post('/scrape', async (req, res) => {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     )
 
+    // Set additional headers to look like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1'
+    })
+
     // Set viewport
     await page.setViewport({ width: 1920, height: 1080 })
 
@@ -62,11 +71,14 @@ app.post('/scrape', async (req, res) => {
       })
     })
 
-    // Navigate to the page - wait for network to be idle
+    // Navigate to the page - use 'load' which waits for page load event
     await page.goto(url, {
-      waitUntil: 'networkidle0',  // Wait until no network connections for 500ms
+      waitUntil: 'load',  // Wait for page load event (more reliable than networkidle)
       timeout: 60000
     })
+
+    // Give page extra time to run JavaScript after load
+    await new Promise(resolve => setTimeout(resolve, 3000))
 
     console.log('Page loaded, checking for results...')
 
