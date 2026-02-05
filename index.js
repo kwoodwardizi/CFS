@@ -53,15 +53,22 @@ app.post('/scrape', async (req, res) => {
     // Set viewport
     await page.setViewport({ width: 1920, height: 1080 })
 
-    // Navigate to the page
+    // Navigate to the page with increased timeout and more lenient wait condition
     await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: 30000
+      waitUntil: 'domcontentloaded',  // Less strict than networkidle2
+      timeout: 60000  // Increased from 30s to 60s
     })
+
+    // Wait a bit for JavaScript to execute
+    await page.waitForTimeout(3000)
 
     // Optional: wait for a specific selector if provided
     if (waitForSelector) {
-      await page.waitForSelector(waitForSelector, { timeout: 10000 })
+      try {
+        await page.waitForSelector(waitForSelector, { timeout: 15000 })
+      } catch (err) {
+        console.log(`Selector ${waitForSelector} not found, continuing anyway`)
+      }
     }
 
     // Get the full HTML content
