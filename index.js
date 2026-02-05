@@ -30,7 +30,7 @@ app.post('/scrape', async (req, res) => {
   let browser = null
 
   try {
-    // Launch browser in headless mode
+    // Launch browser in headless mode with optimizations
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -39,7 +39,9 @@ app.post('/scrape', async (req, res) => {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-software-rasterizer',
-        '--disable-extensions'
+        '--disable-extensions',
+        '--disable-blink-features=AutomationControlled',  // Hide automation
+        '--window-size=1920,1080'
       ]
     })
 
@@ -52,6 +54,13 @@ app.post('/scrape', async (req, res) => {
 
     // Set viewport
     await page.setViewport({ width: 1920, height: 1080 })
+
+    // Hide webdriver property to avoid detection
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => false,
+      })
+    })
 
     // Navigate to the page with increased timeout and more lenient wait condition
     await page.goto(url, {
