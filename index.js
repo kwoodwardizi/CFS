@@ -64,20 +64,39 @@ app.post('/scrape', async (req, res) => {
 
     // Navigate to the page with increased timeout and more lenient wait condition
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',  // Less strict than networkidle2
-      timeout: 60000  // Increased from 30s to 60s
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
     })
 
-    // Wait a bit for JavaScript to execute
-    await new Promise(resolve => setTimeout(resolve, 3000))
-
-    // Optional: wait for a specific selector if provided
+    // Wait for dynamic content to load
     if (waitForSelector) {
       try {
-        await page.waitForSelector(waitForSelector, { timeout: 15000 })
+        // Wait for the selector to exist
+        await page.waitForSelector(waitForSelector, { timeout: 10000 })
+        console.log(`Found selector: ${waitForSelector}`)
+
+        // Wait for the table to have actual content (not empty tbody)
+        await page.waitForFunction(
+          selector => {
+            const table = document.querySelector(selector)
+            if (!table) return false
+            const tbody = table.querySelector('tbody')
+            if (!tbody) return false
+            const rows = tbody.querySelectorAll('tr')
+            console.log(`Found ${rows.length} rows in table`)
+            return rows.length > 0
+          },
+          { timeout: 20000 },
+          waitForSelector
+        )
+        console.log('Table has content!')
       } catch (err) {
-        console.log(`Selector ${waitForSelector} not found, continuing anyway`)
+        console.log(`Timeout waiting for table content: ${err.message}`)
+        // Continue anyway - maybe the page structure is different
       }
+    } else {
+      // No specific selector, just wait a bit
+      await new Promise(resolve => setTimeout(resolve, 5000))
     }
 
     // Get the full HTML content
