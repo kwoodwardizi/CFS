@@ -69,7 +69,7 @@ app.post('/scrape', async (req, res) => {
     })
 
     // Wait a bit for JavaScript to execute
-    await page.waitForTimeout(3000)
+    await new Promise(resolve => setTimeout(resolve, 3000))
 
     // Optional: wait for a specific selector if provided
     if (waitForSelector) {
