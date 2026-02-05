@@ -62,42 +62,48 @@ app.post('/scrape', async (req, res) => {
       })
     })
 
-    // Navigate to the page with increased timeout and more lenient wait condition
+    // Navigate to the page - wait for network to be idle
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle0',  // Wait until no network connections for 500ms
       timeout: 60000
     })
 
-    // Wait for dynamic content to load
-    if (waitForSelector) {
-      try {
-        // Wait for the selector to exist
-        await page.waitForSelector(waitForSelector, { timeout: 10000 })
-        console.log(`Found selector: ${waitForSelector}`)
+    console.log('Page loaded, checking for results...')
 
-        // Wait for the table to have actual content (not empty tbody)
-        await page.waitForFunction(
-          selector => {
-            const table = document.querySelector(selector)
-            if (!table) return false
-            const tbody = table.querySelector('tbody')
-            if (!tbody) return false
-            const rows = tbody.querySelectorAll('tr')
-            console.log(`Found ${rows.length} rows in table`)
-            return rows.length > 0
-          },
-          { timeout: 20000 },
-          waitForSelector
-        )
-        console.log('Table has content!')
-      } catch (err) {
-        console.log(`Timeout waiting for table content: ${err.message}`)
-        // Continue anyway - maybe the page structure is different
+    // Scroll down to trigger any lazy loading
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight)
+    })
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Scroll back up
+    await page.evaluate(() => {
+      window.scrollTo(0, 0)
+    })
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Try clicking "View full results" button if it exists
+    try {
+      const viewMoreButton = await page.$('.viewMoreResults')
+      if (viewMoreButton) {
+        console.log('Clicking "View more results" button...')
+        await viewMoreButton.click()
+        await new Promise(resolve => setTimeout(resolve, 2000))
       }
-    } else {
-      // No specific selector, just wait a bit
-      await new Promise(resolve => setTimeout(resolve, 5000))
+    } catch (err) {
+      console.log('No view more button found')
     }
+
+    // Check if table has content
+    const rowCount = await page.evaluate(() => {
+      const table = document.querySelector('table.results')
+      if (!table) return 0
+      const tbody = table.querySelector('tbody')
+      if (!tbody) return 0
+      return tbody.querySelectorAll('tr').length
+    })
+
+    console.log(`Table has ${rowCount} rows`)
 
     // Get the full HTML content
     const html = await page.content()
